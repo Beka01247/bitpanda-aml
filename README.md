@@ -41,6 +41,50 @@ Clean architecture with event-driven async processing:
 3. **Report Worker** → Generates PDF and publishes `aml.report.ready`
 4. **Response** → Risk score, sanctions data, and signed PDF URL
 
+## Chainalysis Sanctions Screening
+
+This project uses **Chainalysis Sanctions Screening API** as an additional compliance signal (OFAC/SDN identifications).
+
+- Sanctions data is returned in the API response under `sanctions` and is also included in the PDF report.
+- Sanctions results are **not merged** into AML risk scoring (`risk_score`, `risk_level`, `categories`) — those come from the AML provider (AMLBot or mock).
+- If `CHAINALYSIS_API_KEY` is not set or Chainalysis is unavailable, the service still works and returns:
+  - `sanctions.hit = false`
+  - `sanctions.identifications = []`
+
+Example:
+
+```json
+"sanctions": {
+  "hit": true,
+  "identifications": [
+    { "category": "sanctions", "name": "…", "url": "…" }
+  ]
+}
+```
+
+To enable:
+
+Set `CHAINALYSIS_API_KEY` in your environment (see [.env.example](.env.example))
+
+## Temporary Storage & Automatic Cleanup
+
+PDF reports are stored temporarily (no permanent storage):
+
+- **Primary**: MinIO (S3-compatible) object storage
+- **Fallback**: local temp directory
+
+Cleanup behavior:
+
+- Reports are physically deleted after `REPORT_TTL_HOURS`.
+- Cleanup runs automatically every `CLEANUP_INTERVAL_MINUTES`.
+- Token expiration alone is not relied on — expired reports are removed from storage.
+
+Download endpoint behavior:
+
+- `GET /v1/report/{token}.pdf`
+  - **410 Gone** if token expired
+  - **404 Not Found** if token valid but report was already deleted
+
 ## Testing
 
 The codebase includes unit tests for domain logic, infrastructure components, and core business rules.
