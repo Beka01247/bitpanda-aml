@@ -24,6 +24,111 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/check-address": {
+            "post": {
+                "description": "Initiates an AML check for a cryptocurrency address",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "aml"
+                ],
+                "summary": "Check cryptocurrency address",
+                "parameters": [
+                    {
+                        "description": "Check request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/http.CheckAddressRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.CheckAddressResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/http.CheckAddressAcceptedResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/check-address/{check_id}": {
+            "get": {
+                "description": "Retrieves the status of an AML check",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "aml"
+                ],
+                "summary": "Get check status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Check ID",
+                        "name": "check_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/http.CheckAddressResponse"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/http.CheckAddressAcceptedResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
                 "description": "Healthcheck endpoint",
@@ -43,6 +148,151 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/report/{token}.pdf": {
+            "get": {
+                "description": "Downloads or redirects to the PDF report",
+                "produces": [
+                    "application/pdf"
+                ],
+                "tags": [
+                    "aml"
+                ],
+                "summary": "Download report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Report token",
+                        "name": "token",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect to presigned URL",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    },
+                    "410": {
+                        "description": "Gone",
+                        "schema": {
+                            "$ref": "#/definitions/http.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "http.CheckAddressAcceptedResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "poll_url": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.CheckAddressRequest": {
+            "type": "object",
+            "required": [
+                "address",
+                "currency"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "currency": {
+                    "type": "string",
+                    "enum": [
+                        "BTC",
+                        "ETH",
+                        "USDT"
+                    ]
+                }
+            }
+        },
+        "http.CheckAddressResponse": {
+            "type": "object",
+            "properties": {
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "pdf_url": {
+                    "type": "string"
+                },
+                "risk_level": {
+                    "type": "string"
+                },
+                "risk_score": {
+                    "type": "integer"
+                },
+                "sanctions": {
+                    "$ref": "#/definitions/http.SanctionsResponseDTO"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.SanctionsIdentificationDTO": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
+        "http.SanctionsResponseDTO": {
+            "type": "object",
+            "properties": {
+                "hit": {
+                    "type": "boolean"
+                },
+                "identifications": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/http.SanctionsIdentificationDTO"
+                    }
+                }
+            }
         }
     },
     "securityDefinitions": {
@@ -57,9 +307,9 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "",
-	Host:             "",
+	Host:             "localhost:8080",
 	BasePath:         "/v1",
-	Schemes:          []string{},
+	Schemes:          []string{"http"},
 	Title:            "Bitpanda AML",
 	Description:      "API for Bitpanda AML",
 	InfoInstanceName: "swagger",

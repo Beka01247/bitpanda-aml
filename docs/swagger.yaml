@@ -1,4 +1,69 @@
 basePath: /v1
+definitions:
+  http.CheckAddressAcceptedResponse:
+    properties:
+      message:
+        type: string
+      poll_url:
+        type: string
+      status:
+        type: string
+    type: object
+  http.CheckAddressRequest:
+    properties:
+      address:
+        type: string
+      currency:
+        enum:
+        - BTC
+        - ETH
+        - USDT
+        type: string
+    required:
+    - address
+    - currency
+    type: object
+  http.CheckAddressResponse:
+    properties:
+      categories:
+        items:
+          type: string
+        type: array
+      pdf_url:
+        type: string
+      risk_level:
+        type: string
+      risk_score:
+        type: integer
+      sanctions:
+        $ref: '#/definitions/http.SanctionsResponseDTO'
+      status:
+        type: string
+    type: object
+  http.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  http.SanctionsIdentificationDTO:
+    properties:
+      category:
+        type: string
+      name:
+        type: string
+      url:
+        type: string
+    type: object
+  http.SanctionsResponseDTO:
+    properties:
+      hit:
+        type: boolean
+      identifications:
+        items:
+          $ref: '#/definitions/http.SanctionsIdentificationDTO'
+        type: array
+    type: object
+host: localhost:8080
 info:
   contact:
     email: support@swagger.io
@@ -11,6 +76,75 @@ info:
   termsOfService: http://swagger.io/terms/
   title: Bitpanda AML
 paths:
+  /check-address:
+    post:
+      consumes:
+      - application/json
+      description: Initiates an AML check for a cryptocurrency address
+      parameters:
+      - description: Check request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.CheckAddressRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.CheckAddressResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/http.CheckAddressAcceptedResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Check cryptocurrency address
+      tags:
+      - aml
+  /check-address/{check_id}:
+    get:
+      description: Retrieves the status of an AML check
+      parameters:
+      - description: Check ID
+        in: path
+        name: check_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/http.CheckAddressResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/http.CheckAddressAcceptedResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Get check status
+      tags:
+      - aml
   /health:
     get:
       description: Healthcheck endpoint
@@ -24,6 +158,39 @@ paths:
       summary: Healthcheck
       tags:
       - ops
+  /report/{token}.pdf:
+    get:
+      description: Downloads or redirects to the PDF report
+      parameters:
+      - description: Report token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/pdf
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "302":
+          description: Redirect to presigned URL
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/http.ErrorResponse'
+      summary: Download report
+      tags:
+      - aml
+schemes:
+- http
 securityDefinitions:
   ApiKeyAuth:
     in: header
