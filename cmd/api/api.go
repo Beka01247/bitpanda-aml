@@ -24,14 +24,39 @@ type application struct {
 	config      config
 	logger      *zap.SugaredLogger
 	rateLimiter ratelimiter.Limiter
+	handlers    interface {
+		CheckAddress(w http.ResponseWriter, r *http.Request)
+		GetCheckStatus(w http.ResponseWriter, r *http.Request)
+		GetReport(w http.ResponseWriter, r *http.Request)
+	}
+}
+
+type objectStorageConfig struct {
+	endpoint  string
+	publicURL string
+	accessKey string
+	secretKey string
+	bucket    string
+	useSSL    bool
 }
 
 type config struct {
-	addr        string
-	env         string
-	apiURL      string
-	frontendURL string
-	rateLimiter ratelimiter.Config
+	addr                 string
+	env                  string
+	apiURL               string
+	frontendURL          string
+	rateLimiter          ratelimiter.Config
+	checkWaitSeconds     int
+	checkTTLHours        int
+	reportTTLHours       int
+	cleanupIntervalMins  int
+	tokenSecret          string
+	rabbitmqURL          string
+	amlbotBaseURL        string
+	amlbotAPIKey         string
+	chainalysisAPIKey    string
+	objectStorageEnabled bool
+	objectStorageConfig  objectStorageConfig
 }
 
 func (app *application) mount() http.Handler {
@@ -56,6 +81,10 @@ func (app *application) mount() http.Handler {
 	r.Route("/v1", func(r chi.Router) {
 		r.Get("/health", app.healthCheckHandler)
 
+		r.Post("/check-address", app.handlers.CheckAddress)
+		r.Get("/check-address/{check_id}", app.handlers.GetCheckStatus)
+		r.Get("/report/{token}", app.handlers.GetReport)
+
 		docsURL := fmt.Sprintf("%s/swagger/doc.json", app.config.addr)
 		r.Get("/swagger/*", httpSwagger.Handler(httpSwagger.URL(docsURL)))
 	})
@@ -66,8 +95,9 @@ func (app *application) mount() http.Handler {
 func (app *application) run(mux http.Handler) error {
 	// docs
 	docs.SwaggerInfo.Version = version
-	docs.SwaggerInfo.Host = app.config.apiURL
+	docs.SwaggerInfo.Host = "localhost:8080"
 	docs.SwaggerInfo.BasePath = "/v1"
+	docs.SwaggerInfo.Schemes = []string{"http"}
 
 	srv := &http.Server{
 		Addr:         app.config.addr,
